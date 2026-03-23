@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Cloning API Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen text-white">
+    <div class="max-w-3xl mx-auto px-4 py-12">
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+                Voice Cloning API Demo
+            </h1>
+            <p class="text-slate-400">Upload audio files to clone and synthesize voice</p>
+        </div>
+
+        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-6 border border-slate-700 shadow-xl mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-cyan-400">1. Upload Audio Files</h2>
+            
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="space-y-3">
+                    <label class="block text-sm font-medium text-slate-300">Reference Audio (Voice to Clone)</label>
+                    <div class="relative">
+                        <input type="file" id="refAudio" accept="audio/*" 
+                               class="hidden" onchange="handleFileSelect(this, 'ref')">
+                        <label for="refAudio" 
+                               class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-cyan-500 hover:bg-slate-700/50 transition-all duration-200">
+                            <svg class="w-8 h-8 text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                            </svg>
+                            <span class="text-sm text-slate-400" id="refLabel">Click to upload</span>
+                        </label>
+                    </div>
+                    <div id="refPreview" class="hidden">
+                        <audio id="refAudioPlayer" controls class="w-full h-10 rounded-lg"></audio>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <label class="block text-sm font-medium text-slate-300">Sample Audio (Content to Convert)</label>
+                    <div class="relative">
+                        <input type="file" id="sampleAudio" accept="audio/*" 
+                               class="hidden" onchange="handleFileSelect(this, 'sample')">
+                        <label for="sampleAudio" 
+                               class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-purple-500 hover:bg-slate-700/50 transition-all duration-200">
+                            <svg class="w-8 h-8 text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                            </svg>
+                            <span class="text-sm text-slate-400" id="sampleLabel">Click to upload</span>
+                        </label>
+                    </div>
+                    <div id="samplePreview" class="hidden">
+                        <audio id="sampleAudioPlayer" controls class="w-full h-10 rounded-lg"></audio>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-6 border border-slate-700 shadow-xl mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-cyan-400">2. Submit Job</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Job ID</label>
+                    <input type="text" id="jobId" 
+                           class="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+                           placeholder="Enter job ID (e.g., job-001)">
+                </div>
+                
+                <button id="submitBtn" onclick="submitJob()"
+                        class="w-full py-3 px-6 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg id="submitSpinner" class="hidden w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span id="submitText">Submit Job</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="statusPanel" class="hidden bg-slate-800/50 backdrop-blur rounded-2xl p-6 border border-slate-700 shadow-xl mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-cyan-400">3. Job Status</h2>
+            
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-slate-400">Job ID:</span>
+                    <span id="statusJobId" class="font-mono text-cyan-400"></span>
+                </div>
+                
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-slate-400">Status:</span>
+                        <span id="statusBadge" class="px-3 py-1 rounded-full text-sm font-medium"></span>
+                    </div>
+                    <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div id="progressBar" class="h-full bg-gradient-to-r from-cyan-500 to-purple-500 transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div id="timingInfo" class="hidden grid grid-cols-3 gap-4 text-center text-sm">
+                    <div>
+                        <div class="text-slate-400">Created</div>
+                        <div id="createdAt" class="font-medium text-white"></div>
+                    </div>
+                    <div>
+                        <div class="text-slate-400">Started</div>
+                        <div id="startedAt" class="font-medium text-white"></div>
+                    </div>
+                    <div>
+                        <div class="text-slate-400">Finished</div>
+                        <div id="finishedAt" class="font-medium text-white"></div>
+                    </div>
+                </div>
+                
+                <div id="durationInfo" class="hidden text-center text-sm">
+                    <span class="text-slate-400">Processing Duration: </span>
+                    <span id="duration" class="font-medium text-white"></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultPanel" class="hidden bg-gradient-to-br from-green-900/30 to-emerald-900/30 backdrop-blur rounded-2xl p-6 border border-green-700 shadow-xl mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-emerald-400">4. Result</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Output Audio</label>
+                    <audio id="resultAudio" controls class="w-full h-12 rounded-xl"></audio>
+                </div>
+                
+                <div id="resultMetadata" class="hidden grid grid-cols-2 gap-4 text-sm">
+                    <div class="bg-slate-700/50 rounded-lg p-3">
+                        <div class="text-slate-400 text-xs mb-1">Reference Text</div>
+                        <div id="refText" class="text-white"></div>
+                    </div>
+                    <div class="bg-slate-700/50 rounded-lg p-3">
+                        <div class="text-slate-400 text-xs mb-1">Sample Text</div>
+                        <div id="sampleText" class="text-white"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="errorPanel" class="hidden bg-red-900/30 backdrop-blur rounded-2xl p-6 border border-red-700 shadow-xl mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-red-400">Error</h2>
+            <div id="errorMessage" class="text-red-300"></div>
+        </div>
+
+        <div id="alertBox" class="hidden fixed top-4 right-4 z-50 max-w-sm bg-slate-800 border border-slate-600 rounded-xl p-4 shadow-2xl">
+            <div class="flex items-start gap-3">
+                <div id="alertIcon"></div>
+                <div class="flex-1">
+                    <div id="alertTitle" class="font-medium"></div>
+                    <div id="alertMessage" class="text-sm text-slate-400 mt-1"></div>
+                </div>
+                <button onclick="hideAlert()" class="text-slate-400 hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <footer class="text-center text-slate-500 text-sm mt-12">
+            Voice Cloning API &mdash; Powered by FastAPI
+        </footer>
+    </div>
+
+    <script>
+        const API_BASE = 'https://investigations-and-civil-create.trycloudflare.com/api/job';
+        
+        let currentJobId = null;
+        let pollInterval = null;
+        let blobUrls = { ref: null, sample: null };
+
+        function generateJobId() {
+            return 'job-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function handleFileSelect(input, type) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const label = document.getElementById(type + 'Label');
+            const preview = document.getElementById(type + 'Preview');
+            const player = document.getElementById(type + 'AudioPlayer');
+
+            if (blobUrls[type]) {
+                URL.revokeObjectURL(blobUrls[type]);
+            }
+            blobUrls[type] = URL.createObjectURL(file);
+
+            label.textContent = file.name;
+            label.classList.add('text-cyan-400');
+            player.src = blobUrls[type];
+            preview.classList.remove('hidden');
+
+            showAlert('success', 'File Selected', file.name);
+        }
+
+        function validateForm() {
+            const jobId = document.getElementById('jobId').value.trim();
+            const refAudio = document.getElementById('refAudio').files[0];
+            const sampleAudio = document.getElementById('sampleAudio').files[0];
+
+            if (!jobId) {
+                showError('Please enter a Job ID');
+                return false;
+            }
+            if (!refAudio) {
+                showError('Please upload a Reference Audio file');
+                return false;
+            }
+            if (!sampleAudio) {
+                showError('Please upload a Sample Audio file');
+                return false;
+            }
+            return true;
+        }
+
+        async function submitJob() {
+            if (!validateForm()) return;
+
+            const jobId = document.getElementById('jobId').value.trim();
+            const refAudio = document.getElementById('refAudio').files[0];
+            const sampleAudio = document.getElementById('sampleAudio').files[0];
+
+            setLoading(true);
+            hideError();
+            hideResult();
+
+            try {
+                const formData = {
+                    job_id: jobId,
+                    ref_audio_path: refAudio.name,
+                    sample_audio_path: sampleAudio.name
+                };
+
+                const response = await fetch(API_BASE + '/new', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to create job');
+                }
+
+                const result = await response.json();
+                showAlert('success', 'Job Created', `Job ID: ${result.job_id}`);
+
+                currentJobId = jobId;
+                showStatusPanel(jobId);
+                startPolling();
+
+            } catch (error) {
+                showError(error.message);
+                hideStatusPanel();
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function showStatusPanel(jobId) {
+            const panel = document.getElementById('statusPanel');
+            document.getElementById('statusJobId').textContent = jobId;
+            updateStatus('QUEUED', 0);
+            panel.classList.remove('hidden');
+        }
+
+        function hideStatusPanel() {
+            document.getElementById('statusPanel').classList.add('hidden');
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+        }
+
+        function updateStatus(status, progress) {
+            const badge = document.getElementById('statusBadge');
+            const progressBar = document.getElementById('progressBar');
+
+            const statusConfig = {
+                'QUEUED': { class: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50', progress: 10 },
+                'PROCESSING': { class: 'bg-blue-500/20 text-blue-400 border border-blue-500/50', progress: 50 },
+                'COMPLETED': { class: 'bg-green-500/20 text-green-400 border border-green-500/50', progress: 100 },
+                'FAILED': { class: 'bg-red-500/20 text-red-400 border border-red-500/50', progress: 100 }
+            };
+
+            const config = statusConfig[status] || statusConfig['QUEUED'];
+            badge.className = 'px-3 py-1 rounded-full text-sm font-medium ' + config.class;
+            badge.textContent = status;
+            progressBar.style.width = progress || config.progress + '%';
+        }
+
+        function startPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            
+            pollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(API_BASE + '/check_job?job_id=' + currentJobId, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    if (!response.ok) throw new Error('Failed to check job');
+
+                    const result = await response.json();
+                    
+                    if (result.status === 'COMPLETED') {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        updateStatus('COMPLETED', 100);
+                        showResult(result);
+                    } else if (result.status === 'FAILED') {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        updateStatus('FAILED', 100);
+                        showError(result.error_message || 'Job failed');
+                    } else {
+                        updateStatus(result.status, result.status === 'PROCESSING' ? 50 : 10);
+                        updateTimingInfo(result);
+                    }
+
+                } catch (error) {
+                    console.error('Polling error:', error);
+                }
+            }, 2000);
+        }
+
+        function updateTimingInfo(result) {
+            const timingInfo = document.getElementById('timingInfo');
+            const durationInfo = document.getElementById('durationInfo');
+            
+            timingInfo.classList.remove('hidden');
+            
+            if (result.created_at) {
+                document.getElementById('createdAt').textContent = formatDate(result.created_at);
+            }
+            if (result.started_at) {
+                document.getElementById('startedAt').textContent = formatDate(result.started_at);
+            }
+            if (result.finished_at) {
+                document.getElementById('finishedAt').textContent = formatDate(result.finished_at);
+            }
+            if (result.duration_seconds) {
+                durationInfo.classList.remove('hidden');
+                document.getElementById('duration').textContent = result.duration_seconds.toFixed(2) + 's';
+            }
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleTimeString();
+        }
+
+        function showResult(result) {
+            const panel = document.getElementById('resultPanel');
+            const audio = document.getElementById('resultAudio');
+            const metadata = document.getElementById('resultMetadata');
+
+            if (result.out_audio_path) {
+                audio.src = result.out_audio_path;
+                panel.classList.remove('hidden');
+            }
+
+            if (result.ref_text || result.sample_text) {
+                metadata.classList.remove('hidden');
+                document.getElementById('refText').textContent = result.ref_text || '-';
+                document.getElementById('sampleText').textContent = result.sample_text || '-';
+            }
+
+            showAlert('success', 'Job Completed', 'Your audio is ready for download');
+        }
+
+        function hideResult() {
+            document.getElementById('resultPanel').classList.add('hidden');
+        }
+
+        function showError(message) {
+            const panel = document.getElementById('errorPanel');
+            document.getElementById('errorMessage').textContent = message;
+            panel.classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('errorPanel').classList.add('hidden');
+        }
+
+        function setLoading(loading) {
+            const btn = document.getElementById('submitBtn');
+            const spinner = document.getElementById('submitSpinner');
+            const text = document.getElementById('submitText');
+
+            btn.disabled = loading;
+            if (loading) {
+                spinner.classList.remove('hidden');
+                text.textContent = 'Submitting...';
+            } else {
+                spinner.classList.add('hidden');
+                text.textContent = 'Submit Job';
+            }
+        }
+
+        function showAlert(type, title, message) {
+            const alert = document.getElementById('alertBox');
+            const icon = document.getElementById('alertIcon');
+            document.getElementById('alertTitle').textContent = title;
+            document.getElementById('alertMessage').textContent = message;
+
+            const icons = {
+                success: '<svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+                error: '<svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+                info: '<svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
+            };
+
+            icon.innerHTML = icons[type] || icons.info;
+            alert.classList.remove('hidden');
+
+            setTimeout(() => hideAlert(), 5000);
+        }
+
+        function hideAlert() {
+            document.getElementById('alertBox').classList.add('hidden');
+        }
+
+        document.getElementById('jobId').value = generateJobId();
+    </script>
+</body>
+</html>

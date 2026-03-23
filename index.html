@@ -197,6 +197,7 @@
             preview.classList.remove('hidden');
 
             showAlert('success', 'File Selected', file.name);
+            
         }
 
         function validateForm() {
@@ -231,18 +232,14 @@
             hideResult();
 
             try {
-                const formData = {
-                    job_id: jobId,
-                    ref_audio_path: refAudio.name,
-                    sample_audio_path: sampleAudio.name
-                };
+                const formData = new FormData();
+                formData.append('job_id', jobId);
+                formData.append('ref_audio', refAudio);
+                formData.append('sample_audio', sampleAudio);
 
-                const response = await fetch(API_BASE + '/new', {
+                const response = await fetch(API_BASE + '/upload', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData)
+                    body: formData
                 });
 
                 if (!response.ok) {
@@ -252,6 +249,7 @@
 
                 const result = await response.json();
                 showAlert('success', 'Job Created', `Job ID: ${result.job_id}`);
+                
 
                 currentJobId = jobId;
                 showStatusPanel(jobId);
@@ -311,10 +309,11 @@
 
                     const result = await response.json();
                     
+                    
                     if (result.status === 'COMPLETED') {
                         clearInterval(pollInterval);
                         pollInterval = null;
-                        updateStatus('COMPLETED', 100);
+                        updateStatus('COMPLETED', 100);                        
                         showResult(result);
                     } else if (result.status === 'FAILED') {
                         clearInterval(pollInterval);
@@ -364,8 +363,8 @@
             const audio = document.getElementById('resultAudio');
             const metadata = document.getElementById('resultMetadata');
 
-            if (result.out_audio_path) {
-                audio.src = result.out_audio_path;
+            if (result.out_audio_path || result.job_status === 'COMPLETED') {
+                audio.src = API_BASE + '/download/' + currentJobId;
                 panel.classList.remove('hidden');
             }
 
@@ -430,6 +429,7 @@
         }
 
         document.getElementById('jobId').value = generateJobId();
+                
     </script>
 </body>
 </html>
